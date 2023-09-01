@@ -159,7 +159,7 @@ def scrape_job_data(row):
     last_date1= driver.find_element(By.XPATH,'//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/aside[1]/div/pb-section-job-apply-component/div/div/div[1]/strong').text
     try:
         pattern = r'\b(?:\d{1,2}\s+)?(?:januari|februari|mars|april|maj|juni|juli|augusti|september|September|oktober|november|december|\d{1,2})\s+\d{2}(?=\.\d{2})\b'
-        date_matches = re.findall(pattern, last_date, re.IGNORECASE)
+        date_matches = re.findall(pattern, last_date1, re.IGNORECASE)
 
         if date_matches:
             # Convert the month names to month numbers
@@ -179,7 +179,7 @@ def scrape_job_data(row):
 
             last_date = f'{year}-{month}-{day}'
     except:
-        last_date = extract_date(last_date)
+        last_date = extract_date(last_date1)
     print(last_date)
 
     job_info = {
