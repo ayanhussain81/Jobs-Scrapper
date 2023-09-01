@@ -49,34 +49,7 @@ for num in range(page_number):
     for link in links:
         job_link = link.get_attribute('href')
         all_links.append(job_link)
-
-def extract_date(input_string):
-    pattern = r'\b(?:\d{1,2}\s+)?(?:januari|februari|mars|april|maj|juni|juli|augusti|september|September|oktober|november|december|\d{1,2})\s+\d{2}(?=\.\d{2})\b'
-
-    date_matches = re.findall(pattern, input_string, re.IGNORECASE)
-
-    if date_matches:
-        # Convert the month names to month numbers
-        month_mapping = {
-            'januari': '01', 'februari': '02', 'mars': '03', 'april': '04',
-            'maj': '05', 'juni': '06', 'juli': '07', 'augusti': '08',
-            'september': '09','September': '09', 'oktober': '10', 'november': '11', 'december': '12'
-        }
         
-        extracted_date = date_matches[0]
-        parts = extracted_date.split()
-        
-        # If the day is not present, use '01' as default
-        day = parts[0] if parts[0].isdigit() else '01'
-        month = month_mapping.get(parts[1].lower(), '01') if parts[1].lower() in month_mapping else '01'
-        year = '2023'
-        
-        formatted_date = f'{year}-{month}-{day}'
-        return formatted_date
-    else:
-        return None
-    
-    
 def is_id_present(api_url, target_id):
     response = requests.get(api_url)
     
@@ -156,30 +129,21 @@ def scrape_job_data(row):
     except:
         address=''
     WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH,'//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/aside[1]/div/pb-section-job-apply-component/div/div/div[1]/strong')))                               
-    last_date1= driver.find_element(By.XPATH,'//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/aside[1]/div/pb-section-job-apply-component/div/div/div[1]/strong').text
-    try:
-        pattern = r'\b(?:\d{1,2}\s+)?(?:januari|februari|mars|april|maj|juni|juli|augusti|september|September|oktober|november|december|\d{1,2})\s+\d{2}(?=\.\d{2})\b'
-        date_matches = re.findall(pattern, last_date1, re.IGNORECASE)
+    last_date= driver.find_element(By.XPATH,'//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/aside[1]/div/pb-section-job-apply-component/div/div/div[1]/strong').text
+    fixed_year = "2023"
 
-        if date_matches:
-            # Convert the month names to month numbers
-            month_mapping = {
-                'januari': '01', 'februari': '02', 'mars': '03', 'april': '04',
-                'maj': '05', 'juni': '06', 'juli': '07', 'augusti': '08',
-                'september': '09','September': '09', 'oktober': '10', 'november': '11', 'december': '12'
-            }
+    # Define a dictionary to map Swedish month names to numerical values
+    month_mapping = {
+        'januari': '01', 'februari': '02', 'mars': '03', 'april': '04',
+        'maj': '05', 'juni': '06', 'juli': '07', 'augusti': '08',
+        'september': '09', 'oktober': '10', 'november': '11', 'december': '12'
+    }
+    # Split the input string into parts
+    parts = last_date.split()
 
-            extracted_date = date_matches[0]
-            parts = extracted_date.split()
-
-            # If the day is not present, use '01' as default
-            day = parts[0] if parts[0].isdigit() else '01'
-            month = month_mapping.get(parts[1].lower(), '01') if parts[1].lower() in month_mapping else '01'
-            year = '2023'
-
-            last_date = f'{year}-{month}-{day}'
-    except:
-        last_date = extract_date(last_date1)
+    day = parts[0]
+    month = month_mapping.get(parts[1].lower(), '01')  
+    last_date = f'{fixed_year}-{month}-{day}'
     print(last_date)
 
     job_info = {
