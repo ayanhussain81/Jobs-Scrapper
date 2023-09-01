@@ -157,26 +157,29 @@ def scrape_job_data(row):
         address=''
     WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH,'//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/aside[1]/div/pb-section-job-apply-component/div/div/div[1]/strong')))                               
     last_date1= driver.find_element(By.XPATH,'//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/aside[1]/div/pb-section-job-apply-component/div/div/div[1]/strong').text
-    last_date = extract_date(last_date1)
-    count = 0
-    while last_date == None:
-        count = count +1 
-        last_date = extract_date(last_date1)
-        if count == 10:
-            break
-        print(last_date)
+    try:
+        pattern = r'\b(?:\d{1,2}\s+)?(?:januari|februari|mars|april|maj|juni|juli|augusti|september|September|oktober|november|december|\d{1,2})\s+\d{2}(?=\.\d{2})\b'
+        date_matches = re.findall(pattern, last_date, re.IGNORECASE)
 
-    if last_date == None:
-        try:
-            last_date = extract_date(last_date1)
-        except:
-            input_format = "%d %B %H:%M"
-            fixed_year = 2023
-            parsed_date = datetime.strptime(last_date1, input_format)
-            parsed_date = parsed_date.replace(year=fixed_year)
-            output_format = "%Y-%m-%d"
-            last_date = parsed_date.strftime(output_format)
+        if date_matches:
+            # Convert the month names to month numbers
+            month_mapping = {
+                'januari': '01', 'februari': '02', 'mars': '03', 'april': '04',
+                'maj': '05', 'juni': '06', 'juli': '07', 'augusti': '08',
+                'september': '09','September': '09', 'oktober': '10', 'november': '11', 'december': '12'
+            }
 
+            extracted_date = date_matches[0]
+            parts = extracted_date.split()
+
+            # If the day is not present, use '01' as default
+            day = parts[0] if parts[0].isdigit() else '01'
+            month = month_mapping.get(parts[1].lower(), '01') if parts[1].lower() in month_mapping else '01'
+            year = '2023'
+
+            last_date = f'{year}-{month}-{day}'
+    except:
+        last_date = extract_date(last_date)
     print(last_date)
 
     job_info = {
