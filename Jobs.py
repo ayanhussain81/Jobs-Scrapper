@@ -5,10 +5,14 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
+import requests
+import re
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-import requests
+from datetime import datetime
+from selenium.common.exceptions import TimeoutException
+
 
 options = Options()
 options.add_argument('--headless')
@@ -25,35 +29,30 @@ try:
     print("Extracted integer:", page_number)
 except:
     print("Unable to convert inner text to integer")
-    page_number = 65
+    page_number = 50
+
+all_links = []
+for num in range(page_number):
+    url = 'https://arbetsformedlingen.se/platsbanken/annonser?q=energi&page=' + str(num + 1)
+    driver.get(url)
+    count = 0
+    while True:
+        count = count +1 
+        time.sleep(2)
+        links = driver.find_elements(By.XPATH, "//a[contains(@href, '/platsbanken/annonser/')]")
+        if links:
+            break  
+        if count == 15:
+            break
+        print("No links found. Retrying...")
     
-try:    
-    all_links = []
-    for i in range(page_number-1):
-        time.sleep(5)
-        links = driver.find_elements(By.XPATH, "//a[contains(@href, '/platsbanken/annonser/')]")
-        for link in links:
-            job_link = link.get_attribute('href')
-            all_links.append(job_link)
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/div[2]/div[7]/div/div/main/div[3]/div/div/div[2]/div/div/div/div/div[2]/div[2]/pb-root/div/pb-page-search/div[2]/pb-feature-tabs/div[2]/pb-section-search-result/div/div/div/div/div/div/pb-feature-pagination/digi-navigation-pagination/div/nav/digi-button[2]/button")))
-        next  =  driver.find_element(By.XPATH,'/html/body/div[1]/div[2]/div[7]/div/div/main/div[3]/div/div/div[2]/div/div/div/div/div[2]/div[2]/pb-root/div/pb-page-search/div[2]/pb-feature-tabs/div[2]/pb-section-search-result/div/div/div/div/div/div/pb-feature-pagination/digi-navigation-pagination/div/nav/digi-button[2]/button').click()
-except:
-    driver.get('https://arbetsformedlingen.se/platsbanken/annonser?q=energi')
-    all_links = []
-    for i in range(page_number):
-        url = 'https://arbetsformedlingen.se/platsbanken/annonser?q=energi&page=' + str(i +1)
-        driver.get(url)
-        time.sleep(5)
-        links = driver.find_elements(By.XPATH, "//a[contains(@href, '/platsbanken/annonser/')]")
-        for link in links:
-            job_link = link.get_attribute('href')
-            all_links.append(job_link)
+    for link in links:
+        job_link = link.get_attribute('href')
+        all_links.append(job_link)
 
 def extract_date(input_string):
-    # Regular expression pattern to match dates
     pattern = r'\b(?:\d{1,2}\s+)?(?:januari|februari|mars|april|maj|juni|juli|augusti|september|September|oktober|november|december|\d{1,2})\s+\d{2}(?=\.\d{2})\b'
 
-    # Find date matches in the input string
     date_matches = re.findall(pattern, input_string, re.IGNORECASE)
 
     if date_matches:
@@ -98,74 +97,100 @@ def is_id_present(api_url, target_id):
 def scrape_job_data(row):
 #     try:
     driver.get(row)
-
-    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CLASS_NAME, "spacing.break-title")))
-    title = driver.find_element(By.CLASS_NAME, "spacing.break-title").text
+    try:
+        WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.CLASS_NAME, "spacing.break-title")))
+        title = driver.find_element(By.CLASS_NAME, "spacing.break-title").text
+    except TimeoutException:
+        print("Skipping...")
+        title = ''
+        
+#     except:
+#         time.sleep(5)
+#         title = driver.find_element(By.CLASS_NAME, "spacing.break-title").text
     form_of_employment = driver.find_element(By.XPATH, "/html/body/div[1]/div[2]/div[7]/div/div/main/div[3]/div/div/div[2]/div/div/div/div/div[2]/div[2]/pb-root/div/pb-page-job/div/section/div/div[2]/div[2]/section/pb-section-job-quick-info/div[2]/div[3]/span[2]").text
     try:
         location =  driver.find_element(By.ID,'pb-job-location').text
+        location = location.replace("Kommun: ", "")
     except:
-        location = ''
-    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, '//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/section/pb-section-job-quick-info/div[2]/div[1]/span[2]')))
+        try:
+            location =  driver.find_element(By.ID,'pb-job-location').text
+            location = location.replace("Kommun: ", "")
+        except:
+            location = ''
+    WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, '//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/section/pb-section-job-quick-info/div[2]/div[1]/span[2]')))
     scope = driver.find_element(By.XPATH, '//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/section/pb-section-job-quick-info/div[2]/div[1]/span[2]').text
 
-    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "pb-company-name")))
+    WebDriverWait(driver,20).until(EC.presence_of_element_located((By.ID, "pb-company-name")))
     duration = driver.find_element(By.CLASS_NAME, "upper-fist").text
 
     try:
-        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, '/html/body/div[1]/div[2]/div[7]/div/div/main/div[3]/div/div/div[2]/div/div/div/div/div[2]/div[2]/pb-root/div/pb-page-job/div/section/div/div[2]/div[1]/div[1]/img')))
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, '/html/body/div[1]/div[2]/div[7]/div/div/main/div[3]/div/div/div[2]/div/div/div/div/div[2]/div[2]/pb-root/div/pb-page-job/div/section/div/div[2]/div[1]/div[1]/img')))
         img_element = driver.find_element(By.XPATH, '/html/body/div[1]/div[2]/div[7]/div/div/main/div[3]/div/div/div[2]/div/div/div/div/div[2]/div[2]/pb-root/div/pb-page-job/div/section/div/div[2]/div[1]/div[1]/img')
         image_link = img_element.get_attribute("src")
     except:
         image_link =''
     try:
-        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, '/html/body/div[1]/div[2]/div[7]/div/div/main/div[3]/div/div/div[2]/div/div/div/div/div[2]/div[2]/pb-root/div/pb-page-job/div/section/div/div[2]/div[2]/section/div/pb-feature-job-qualifications/div/pb-section-job-qualification/div/div/ul/li')))         
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, '/html/body/div[1]/div[2]/div[7]/div/div/main/div[3]/div/div/div[2]/div/div/div/div/div[2]/div[2]/pb-root/div/pb-page-job/div/section/div/div[2]/div[2]/section/div/pb-feature-job-qualifications/div/pb-section-job-qualification/div/div/ul/li')))         
         req = driver.find_element(By.XPATH, '/html/body/div[1]/div[2]/div[7]/div/div/main/div[3]/div/div/div[2]/div/div/div/div/div[2]/div[2]/pb-root/div/pb-page-job/div/section/div/div[2]/div[2]/section/div/pb-feature-job-qualifications/div/pb-section-job-qualification/div/div/ul/li').text
     except:
         req =''
     try:
-        
-        WebDriverWait(driver, 5).until(EC.presence_of_element_located(( By.XPATH, "/html/body/div[1]/div[2]/div[7]/div/div/main/div[3]/div/div/div[2]/div/div/div/div/div[2]/div[2]/pb-root/div/pb-page-job/div/section/div/div[2]/div[2]/section/pb-section-job-main-content")))                               
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located(( By.XPATH, "/html/body/div[1]/div[2]/div[7]/div/div/main/div[3]/div/div/div[2]/div/div/div/div/div[2]/div[2]/pb-root/div/pb-page-job/div/section/div/div[2]/div[2]/section/pb-section-job-main-content")))                               
         about_job = driver.find_element(By.XPATH, "/html/body/div[1]/div[2]/div[7]/div/div/main/div[3]/div/div/div[2]/div/div/div/div/div[2]/div[2]/pb-root/div/pb-page-job/div/section/div/div[2]/div[2]/section/pb-section-job-main-content")
         about_job_html = about_job.get_attribute("outerHTML")
+        extra = '<a href="Source URL" class="button">Ansök på arbetsförmedlingen</a>'
+        about_job_html = about_job_html + extra
     except:
         about_job_html =''
-    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CLASS_NAME,'salary-type.ng-star-inserted')))                               
+    WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CLASS_NAME,'salary-type.ng-star-inserted')))                               
     sal_type = driver.find_element(By.CLASS_NAME,'salary-type.ng-star-inserted').text
     sal_type = sal_type.split(':')[1]
     try:
-        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CLASS_NAME,'salary-description.ng-star-inserted')))                               
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CLASS_NAME,'salary-description.ng-star-inserted')))                               
         sal = driver.find_element(By.CLASS_NAME,'salary-description.ng-star-inserted').text
     except:
         sal =''
-
-    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CLASS_NAME,'address-container')))                               
-    address = driver.find_element(By.CLASS_NAME,'address-container').text
-    
-#     try:
-    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH,'//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/aside[1]/div/pb-section-job-apply-component/div/div/div[1]/strong')))                               
+    try:
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CLASS_NAME,'address-container')))                               
+        address = driver.find_element(By.CLASS_NAME,'address-container').text
+    except:
+        address=''
+    WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH,'//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/aside[1]/div/pb-section-job-apply-component/div/div/div[1]/strong')))                               
     last_date1= driver.find_element(By.XPATH,'//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/aside[1]/div/pb-section-job-apply-component/div/div/div[1]/strong').text
-    print(last_date1)
     last_date = extract_date(last_date1)
-#     except:
-#         try:
-#             last_date = extract_date(last_date1)
-#         except:
-#             last_date =''
+    count = 0
+    while last_date == None:
+        count = count +1 
+        last_date = extract_date(last_date1)
+        if count == 10:
+            break
+        print(last_date)
+
+    if last_date == None:
+        try:
+            last_date = extract_date(last_date1)
+        except:
+            input_format = "%d %B %H:%M"
+            fixed_year = 2023
+            parsed_date = datetime.strptime(last_date1, input_format)
+            parsed_date = parsed_date.replace(year=fixed_year)
+            output_format = "%Y-%m-%d"
+            last_date = parsed_date.strftime(output_format)
+
+    print(last_date)
 
     job_info = {
         "title": title,
         "td_source_url": row,
         "td_via_url":row,
         "feature_image":image_link, 
-#         "Company Name": company_name,
         "content4": form_of_employment,
         "content5": req,
         "content1": about_job_html,
         "content2": sal_type,
         "content3": address,
         "awsm_job_expiry": last_date,
-         "job_types":scope,
+        "job_types":scope,
         "job_location": location,
         "job_duration": duration,
         "job_salary":sal,
@@ -181,20 +206,23 @@ api_url_post = "https://aktuellenergi.se/wp-json/wpjobopenings/v1/add-job"
 
  
 for row in all_links:
-    job_info = scrape_job_data(row)
-    print(job_info)
-    target_id = row.split('/')[-1]
-    
-    if is_id_present(api_url_get, target_id):
-        print(f"ID {target_id} is present in the data.")
-    else:
-        print(f"ID {target_id} is not present in the data.")
-        response = requests.post(api_url_post, json=job_info)
+    try:
+        job_info = scrape_job_data(row)
+        print(job_info)
+        target_id = row.split('/')[-1]
 
-        # Check the response status
-        if response.status_code == 200:
-            print("Job posted successfully!")
+        if is_id_present(api_url_get, target_id):
+            print(f"ID {target_id} is present in the data.")
         else:
-            print("Failed to post job.")
-            print("Response:", response.text)
+            print(f"ID {target_id} is not present in the data.")
+            response = requests.post(api_url_post, json=job_info)
 
+            # Check the response status
+            if response.status_code == 200:
+                print("Job posted successfully!")
+            else:
+                print("Failed to post job.")
+                print("Response:", response.text)
+    except:
+        print('passs')
+        pass
