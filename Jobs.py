@@ -167,27 +167,21 @@ def scrape_job_data(row):
     except:
         address=''
     WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH,'//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/aside[1]/div/pb-section-job-apply-component/div/div/div[1]/strong')))                               
-    last_date1= driver.find_element(By.XPATH,'//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/aside[1]/div/pb-section-job-apply-component/div/div/div[1]/strong').text
-    last_date = extract_date(last_date1)
-    count = 0
-    while last_date == None:
-        count = count +1 
-        last_date = extract_date(last_date1)
-        if count == 10:
-            break
-        print(last_date)
+    last_date= driver.find_element(By.XPATH,'//*[@id="pb-root"]/pb-page-job/div/section/div/div[2]/div[2]/aside[1]/div/pb-section-job-apply-component/div/div/div[1]/strong').text
+    fixed_year = "2023"
 
-    if last_date == None:
-        try:
-            last_date = extract_date(last_date1)
-        except:
-            input_format = "%d %B %H:%M"
-            fixed_year = 2023
-            parsed_date = datetime.strptime(last_date1, input_format)
-            parsed_date = parsed_date.replace(year=fixed_year)
-            output_format = "%Y-%m-%d"
-            last_date = parsed_date.strftime(output_format)
+    # Define a dictionary to map Swedish month names to numerical values
+    month_mapping = {
+        'januari': '01', 'februari': '02', 'mars': '03', 'april': '04',
+        'maj': '05', 'juni': '06', 'juli': '07', 'augusti': '08',
+        'september': '09', 'oktober': '10', 'november': '11', 'december': '12'
+    }
+    # Split the input string into parts
+    parts = last_date.split()
 
+    day = parts[0]
+    month = month_mapping.get(parts[1].lower(), '01')  
+    last_date = f'{fixed_year}-{month}-{day}'
     print(last_date)
 
     job_info = {
